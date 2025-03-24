@@ -31,8 +31,9 @@ Example:
 ./issue-viewer go
 ```
 Flags
-Flag	Description
--repo <the name of the repo>
+Flag Description
+-repo 'the name of the repo'
+-user 'username'
 
 Example:
 
