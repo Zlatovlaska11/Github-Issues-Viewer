@@ -1,13 +1,16 @@
 package main
 
 import (
-  "zlatolas/projectManager/tui"
+	"flag"
+	"zlatolas/projectManager/tui"
 )
 
+
 func main() {
-	// issues := GetIssues("Strnadi-Mobile-App")
-	//
-	// parseIssues(issues)
-  tui.InitTui();
+  var repo = flag.String("repo", "Default", "the name of the repo")
+  var user = flag.String("user", "Default", "your username on github")
+  flag.Parse()
+
+  tui.InitTui(*repo, *user);
 
 }

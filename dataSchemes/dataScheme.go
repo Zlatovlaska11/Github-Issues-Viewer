@@ -1,4 +1,4 @@
-package dataschemes
+package dataSchemes
 
 import (
 	"time"

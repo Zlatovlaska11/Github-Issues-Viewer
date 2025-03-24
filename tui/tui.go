@@ -2,16 +2,18 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"zlatolas/projectManager/dataSchemes"
+
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"os"
-	"zlatolas/projectManager/dataSchemes"
 )
 
 type model struct {
 	page         int
+	repoInput    textinput.Model
 	titleInput   textinput.Model
 	descInput    textinput.Model
 	labelInput   textinput.Model
@@ -24,14 +26,19 @@ type model struct {
 }
 
 var baseStyle = lipgloss.NewStyle().
-	BorderStyle(lipgloss.NormalBorder()).
+	BorderStyle(lipgloss.DoubleBorder()).
 	BorderForeground(lipgloss.Color("240"))
+
+var username string;
 
 const (
 	page1 = iota
 	page2
 	page3
 )
+
+var Reset = "\033[0m"
+var Red = "\033[31m"
 
 func (m model) Init() tea.Cmd {
 	return nil
@@ -49,7 +56,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.updateFocus() // Update focus when navigating
 			}
 		case "down":
-			if m.currentInput < 2 { // 0-based index for 3 inputs
+			if m.currentInput < 3 { // 0-based index for 3 inputs
 				m.currentInput++
 				m.updateFocus() // Update focus when navigating
 			}
@@ -60,17 +67,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else {
 				m.page = page1
 			}
-    case "q":
-      if m.page == page3 {
-        m.page = page1
-      }
+		case "q":
+			if m.page == page3 {
+				m.page = page1
+			}
 		case "enter":
 			if m.page != 0 {
 				m.page = page3
 			} else {
+				dataSchemes.CreateIssue(m.titleInput.Value(), m.descInput.Value(), m.labelInput.Value(), m.repoInput.Value(), username)
 				m.titleInput.Reset()
 				m.descInput.Reset()
 				m.labelInput.Reset()
+				m.repoInput.Reset()
 			}
 			// TODO add some sending logic
 		}
@@ -81,10 +90,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.page == page1 {
 		switch m.currentInput {
 		case 0:
-			m.titleInput, cmd = m.titleInput.Update(msg)
+			m.repoInput, cmd = m.repoInput.Update(msg)
 		case 1:
-			m.descInput, cmd = m.descInput.Update(msg)
+			m.titleInput, cmd = m.titleInput.Update(msg)
 		case 2:
+			m.descInput, cmd = m.descInput.Update(msg)
+		case 3:
 			m.labelInput, cmd = m.labelInput.Update(msg)
 		}
 		return m, cmd
@@ -98,17 +109,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *model) updateFocus() {
 	switch m.currentInput {
 	case 0:
-		m.titleInput.Focus()
-		m.descInput.Blur()
-		m.labelInput.Blur()
+    m.titleInput.Blur()
+    m.descInput.Blur()
+    m.labelInput.Blur()
+    m.repoInput.Focus()
 	case 1:
-		m.titleInput.Blur()
-		m.descInput.Focus()
-		m.labelInput.Blur()
+    m.titleInput.Focus()
+    m.repoInput.Blur()
+    m.descInput.Blur()
+    m.labelInput.Blur()
 	case 2:
-		m.titleInput.Blur()
-		m.descInput.Blur()
-		m.labelInput.Focus()
+    m.titleInput.Blur()
+    m.repoInput.Blur()
+    m.descInput.Focus()
+    m.labelInput.Blur()
+  case 3:
+    m.titleInput.Blur()
+    m.repoInput.Blur()
+    m.descInput.Blur()
+    m.labelInput.Focus()
 	}
 }
 
@@ -132,24 +151,27 @@ func (m model) View() string {
 		view += fmt.Sprintf("Description: %s\n", m.descInput.View())
 		view += fmt.Sprintf("Labels: %s\n", m.labelInput.View())
 		view += fmt.Sprintf("[Submit]")
-		view += "\nPress 'Tab' to go to the summary page\nPress 'esc' to quit."
+		view += "\nPress 'Tab' to go to the summary page Press 'esc' to quit."
 	case page2:
 		view += m.table.View() + "\nPress q to quit."
 	case page3:
-		view += fmt.Sprintf("issue number: %s\n", m.table.SelectedRow()[0])
-		view += fmt.Sprintf("description: %s\n", m.table.SelectedRow()[1])
-		view += fmt.Sprintf("status: %s\n", m.table.SelectedRow()[2])
-		view += fmt.Sprintf("assignee: %s\n", m.table.SelectedRow()[3])
+		view += fmt.Sprintf(Red+"Issue number:"+Reset+" %s\n", m.table.SelectedRow()[0])
+		view += fmt.Sprintf(Red+"Description:"+Reset+" %s\n", m.table.SelectedRow()[1])
+		view += fmt.Sprintf(Red+"Status:"+Reset+" %s\n", m.table.SelectedRow()[2])
+		view += fmt.Sprintf(Red+"Assignee:"+Reset+" %s\n", m.table.SelectedRow()[3])
 	}
 
 	return view
 }
 
-func InitTui() {
+func InitTui(repo string, user string) {
 	// Initialize form inputs for GitHub issue creation
+	repoInput := textinput.New()
+	repoInput.Placeholder = repo
+	repoInput.Focus()
+
 	titleInput := textinput.New()
 	titleInput.Placeholder = "Issue Title"
-	titleInput.Focus()
 
 	descInput := textinput.New()
 	descInput.Placeholder = "Issue Description"
@@ -164,9 +186,11 @@ func InitTui() {
 		{Title: "Asignee", Width: 10},
 	}
 
-	issues := dataschemes.GetIssues("Strnadi-Mobile-App")
+	issues := dataSchemes.GetIssues(repo, user)
 
-	rows := dataschemes.ParseIssues(issues)
+  username = user
+
+	rows := dataSchemes.ParseIssues(issues)
 
 	rws := []table.Row{}
 	for _, issue := range rows.Issues {
@@ -202,6 +226,7 @@ func InitTui() {
 	p := tea.NewProgram(model{
 		page:         page1,
 		table:        t,
+    repoInput:    repoInput,
 		titleInput:   titleInput,
 		descInput:    descInput,
 		labelInput:   labelInput,
