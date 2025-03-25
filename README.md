@@ -15,7 +15,7 @@ A simple command-line tool written in Go for viewing GitHub issues from any publ
 
     Clone the repo:
 ```bash
-git clone https://github.com/yourusername/issue-viewer.git
+git clone https://github.com/Zlatovlaska11/Github-Issues-Viewer.git
 cd issue-viewer
 ```
     Build the binary:
